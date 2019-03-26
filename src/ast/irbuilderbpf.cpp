@@ -416,16 +416,16 @@ Value *IRBuilderBPF::CreateStrcmp(Value* val1, Value* val2, bool inverse) {
         for (size_t i = 0; i < bpftrace_.strlen_; i++)
         {
 
-          if (val1[i] == NULL || val2[2] == NULL)
-          {
-            return val1[i] == val2[i]
-          }
-
           if (val1[i] != val2[i])
           {
             return false;
           }
+          if (val1[i] == NULL)
+          {
+            return true;
+          }
         }
+
         return true;
      }
   */
@@ -444,7 +444,6 @@ Value *IRBuilderBPF::CreateStrcmp(Value* val1, Value* val2, bool inverse) {
   {
     BasicBlock *char_eq = BasicBlock::Create(module_.getContext(), "strcmp.loop", parent);
     BasicBlock *loop_null_check = BasicBlock::Create(module_.getContext(), "strcmp.loop_null_cmp", parent);
-    BasicBlock *loop_cmp_continue = BasicBlock::Create(module_.getContext(), "strcmp.loop_cmp_continue", parent);
 
     AllocaInst *val_char1 = CreateAllocaBPF(getInt8Ty(), "strcmp.char_l");
     Value *ptr1 = CreateAdd(val1, getInt64(i));
@@ -456,22 +455,14 @@ Value *IRBuilderBPF::CreateStrcmp(Value* val1, Value* val2, bool inverse) {
     CreateProbeRead(val_char2, 1, ptr2);
     Value *r = CreateLoad(getInt8Ty(), val_char2);
 
-    Value *cmp_null_l = CreateICmpEQ(l, null_byte, "strcmp.cmp_null_l");
-    CreateCondBr(cmp_null_l, loop_null_check, loop_cmp_continue);
-
-    Value *cmp_null_r = CreateICmpEQ(l, null_byte, "strcmp.cmp_null_r");
-    CreateCondBr(cmp_null_r, loop_null_check, loop_cmp_continue);
+    Value *cmp = CreateICmpNE(l, r, "strcmp.cmp");
+    CreateCondBr(cmp, str_ne, loop_null_check);
 
     SetInsertPoint(loop_null_check);
 
-    Value *cmp_null = CreateICmpNE(l, r, "strcmp.cmp_null");
-    CreateCondBr(cmp_null, str_ne, done);
+    Value *cmp_null = CreateICmpEQ(l, null_byte, "strcmp.cmp_null");
+    CreateCondBr(cmp_null, done, char_eq);
 
-    SetInsertPoint(loop_cmp_continue);
-
-    Value *cmp = CreateICmpNE(l, r, "strcmp.cmp");
-
-    CreateCondBr(cmp, str_ne, char_eq);
     SetInsertPoint(char_eq);
   }
 

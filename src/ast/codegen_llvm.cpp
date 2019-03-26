@@ -766,13 +766,13 @@ void CodegenLLVM::visit(Binop &binop)
     if (binop.right->is_literal)
     {
       binop.left->accept(*this);
-      string_literal = reinterpret_cast<String *>(binop.right)->str;
+      string_literal = static_cast<String *>(binop.right)->str;
       expr_ = b_.CreateStrcmp(expr_, string_literal, inverse);
     }
     else if (binop.left->is_literal)
     {
       binop.right->accept(*this);
-      string_literal = reinterpret_cast<String *>(binop.left)->str;
+      string_literal = static_cast<String *>(binop.left)->str;
       expr_ = b_.CreateStrcmp(expr_, string_literal, inverse);
     }
     else
